@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Zeliha Sahin IPTV</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+
+:root {
+  --bg0:#000;--bg1:#0d0d0d;--bg2:#161616;--bg3:#1e1e1e;--bg4:#252525;
+  --gold:#f0a500;--gold2:#ffc233;--white:#fff;--gray:#888;--gray2:#444;
+  --green:#3ecf6e;--red:#f87171;--blue:#38bdf8;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:var(--bg0);color:var(--white);
+  font-family:'Inter',sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;}
+
+/* ─── SPLASH ─── */
+#splash{
+  position:fixed;inset:0;z-index:9999;background:var(--bg0);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:20px;
+  animation:spOut 0.5s ease 4.5s forwards;
+}
+@keyframes spOut{to{opacity:0;pointer-events:none;}}
+.sp-name{font-size:clamp(54px,10vw,110px);font-weight:900;letter-spacing:4px;color:#fff;line-height:1.1;animation:fadeUp 0.8s ease 0.3s both;}
+.sp-name span{color:var(--gold);}
+.sp-bar{width:160px;height:4px;background:var(--gold);margin:32px 0;animation:fadeUp 0.6s ease 0.7s both;}
+.sp-ded{font-size:clamp(22px,4vw,34px);font-weight:700;color:var(--gray);text-align:center;line-height:1.6;animation:fadeUp 0.7s ease 0.9s both;}
+.sp-ded b{color:#fff;} .sp-ded span{color:var(--gold);}
+.sp-prog{width:240px;height:4px;background:var(--bg3);border-radius:2px;margin-top:64px;overflow:hidden;animation:fadeUp 0.4s ease 1.3s both;}
+.sp-prog div{height:100%;background:var(--gold);animation:barGrow 3s ease 1.4s both;}
+@keyframes barGrow{from{width:0}to{width:100%}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── APP ─── */
+#app{position:fixed;inset:0;display:flex;opacity:0;animation:fadeIn 0.5s ease 4.8s forwards;}
+@keyframes fadeIn{to{opacity:1;}}
+
+/* ─── PANEL (channel list) ─── */
+#panel{
+  width:500px;flex-shrink:0;background:var(--bg1);
+  border-right:1px solid var(--bg3);
+  display:flex;flex-direction:column;
+  transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+  position:relative;z-index:10;
+}
+#panel.hidden{transform:translateX(-100%);pointer-events:none;}
+
+.panel-head{
+  padding:24px 28px 20px;border-bottom:1px solid var(--bg3);flex-shrink:0;
+}
+.panel-lbl{font-size:12px;font-weight:700;letter-spacing:5px;text-transform:uppercase;color:var(--gold);margin-bottom:4px;}
+.panel-title{font-size:clamp(22px,3vw,30px);font-weight:900;color:#fff;}
+.panel-cnt{font-size:14px;color:var(--gray);font-weight:600;margin-top:4px;}
+
+#chList{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0;
+  scrollbar-width:thin;scrollbar-color:rgba(240,165,0,0.2) transparent;}
+#chList::-webkit-scrollbar{width:4px;}
+#chList::-webkit-scrollbar-thumb{background:rgba(240,165,0,0.2);border-radius:2px;}
+
+.ch{display:flex;align-items:center;gap:16px;padding:14px 24px;cursor:pointer;
+  border-left:4px solid transparent;transition:background 0.1s,border-color 0.1s;}
+.ch.focused{background:rgba(240,165,0,0.1);border-left-color:var(--gold);}
+.ch.playing{background:rgba(240,165,0,0.06);border-left-color:var(--gold2);}
+.ch.focused.playing{background:rgba(240,165,0,0.12);border-left-color:var(--gold);}
+
+.ch-num{font-size:18px;font-weight:800;color:var(--gray2);min-width:32px;text-align:right;flex-shrink:0;font-variant-numeric:tabular-nums;}
+.ch.focused .ch-num,.ch.playing .ch-num{color:var(--gold);}
+
+.ch-logo{width:68px;height:68px;border-radius:10px;background:var(--bg2);border:1px solid var(--bg3);
+  flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.ch-logo img{width:100%;height:100%;object-fit:contain;}
+.ch-logo-txt{font-size:11px;font-weight:800;color:var(--gray);text-align:center;padding:4px;line-height:1.3;}
+
+.ch-info{flex:1;min-width:0;}
+.ch-name{font-size:clamp(18px,2.2vw,22px);font-weight:800;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch.playing .ch-name{color:var(--gold2);}
+.ch.focused.playing .ch-name{color:#fff;}
+.ch-sub{display:flex;align-items:center;gap:6px;margin-top:5px;}
+.ch-dot{width:7px;height:7px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 6px var(--green);animation:dotP 2s ease infinite;flex-shrink:0;}
+@keyframes dotP{0%,100%{opacity:1}50%{opacity:0.3}}
+.ch-live-lbl{font-size:12px;font-weight:700;color:var(--gray);letter-spacing:1px;text-transform:uppercase;}
+.ch.focused .ch-live-lbl{color:var(--gold);}
+
+/* ─── PLAYER ─── */
+#player{flex:1;position:relative;background:#000;overflow:hidden;}
+#vid{width:100%;height:100%;object-fit:contain;background:#000;display:block;}
+
+#loader{position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+  flex-direction:column;gap:20px;background:rgba(0,0,0,0.8);z-index:20;}
+#loader.on{display:flex;}
+.spin{width:56px;height:56px;border:4px solid rgba(240,165,0,0.15);
+  border-top-color:var(--gold);border-radius:50%;animation:spin 0.75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{font-size:15px;font-weight:700;color:var(--gray);letter-spacing:4px;text-transform:uppercase;}
+
+#empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:14px;}
+#empty.hide{display:none;}
+.empty-txt{font-size:clamp(18px,2vw,22px);font-weight:700;color:var(--gray2);}
+
+/* ─── FULLSCREEN ─── */
+#app.fs #panel{transform:translateX(-100%);pointer-events:none;}
+#app.fs #player{position:fixed;inset:0;z-index:5;}
+
+/* ─── OSD ─── */
+#osd{position:fixed;bottom:56px;left:50%;transform:translateX(-50%);z-index:200;pointer-events:none;}
+.osd-box{background:rgba(8,8,8,0.96);border:2px solid var(--gold);border-radius:16px;
+  padding:18px 36px;display:flex;align-items:center;gap:22px;min-width:380px;
+  animation:osdIn 0.2s ease;box-shadow:0 8px 40px rgba(0,0,0,0.8);}
+@keyframes osdIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.osd-num{font-size:52px;font-weight:900;color:var(--gold);line-height:1;min-width:60px;text-align:right;font-variant-numeric:tabular-nums;}
+.osd-logo{width:68px;height:68px;border-radius:10px;background:var(--bg2);border:1px solid var(--bg3);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.osd-logo img{width:100%;height:100%;object-fit:contain;}
+.osd-logo-txt{font-size:11px;font-weight:800;color:var(--gray);text-align:center;}
+.osd-name{font-size:clamp(22px,2.5vw,28px);font-weight:900;color:#fff;}
+.osd-sub{font-size:13px;font-weight:600;color:var(--gold);margin-top:4px;letter-spacing:2px;text-transform:uppercase;}
+
+/* ─── VOICE ASSISTANT OVERLAY ─── */
+#voiceOverlay{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(0,0,0,0.92);
+  display:none;align-items:center;justify-content:center;flex-direction:column;gap:24px;
+}
+#voiceOverlay.on{display:flex;}
+.voice-ring{
+  width:120px;height:120px;border-radius:50%;
+  border:4px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.voice-ring::before{
+  content:'';position:absolute;inset:-12px;border-radius:50%;
+  border:2px solid rgba(240,165,0,0.3);
+  animation:voicePulse 1.2s ease infinite;
+}
+.voice-ring::after{
+  content:'';position:absolute;inset:-24px;border-radius:50%;
+  border:2px solid rgba(240,165,0,0.15);
+  animation:voicePulse 1.2s ease 0.3s infinite;
+}
+@keyframes voicePulse{0%{transform:scale(1);opacity:1}100%{transform:scale(1.15);opacity:0}}
+.voice-mic{font-size:48px;}
+.voice-status{font-size:clamp(20px,3vw,26px);font-weight:700;color:#fff;text-align:center;}
+.voice-hint{font-size:clamp(14px,2vw,17px);color:var(--gray);font-weight:600;text-align:center;max-width:460px;line-height:1.6;}
+.voice-result{font-size:clamp(24px,3.5vw,32px);font-weight:900;color:var(--gold);text-align:center;min-height:40px;}
+.voice-cancel{
+  margin-top:8px;padding:14px 32px;border-radius:10px;
+  background:var(--bg2);border:1px solid var(--bg3);
+  color:var(--gray);font-family:'Inter',sans-serif;font-size:16px;font-weight:700;
+  cursor:pointer;transition:all 0.15s;
+}
+.voice-cancel:hover,.voice-cancel:active{color:#fff;border-color:var(--gray);}
+
+/* ─── SPEAKING TOAST ─── */
+#speakToast{
+  position:fixed;top:28px;left:50%;transform:translateX(-50%);z-index:400;
+  background:rgba(8,8,8,0.96);border:2px solid var(--gold);border-radius:14px;
+  padding:14px 28px;text-align:center;display:none;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7);
+  animation:osdIn 0.2s ease;
+}
+#speakToast.on{display:block;}
+.speak-toast-txt{font-size:clamp(16px,2.5vw,20px);font-weight:800;color:#fff;}
+.speak-toast-sub{font-size:13px;color:var(--gold);font-weight:600;margin-top:4px;letter-spacing:1px;}
+
+/* ─── ADMIN LOGIN ─── */
+#adminLogin{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,0.93);
+  display:none;align-items:center;justify-content:center;overflow-y:auto;}
+#adminLogin.on{display:flex;}
+.login-card{width:min(420px,92vw);background:var(--bg2);border:1px solid var(--bg3);
+  border-radius:20px;padding:clamp(28px,5vw,48px) clamp(24px,5vw,44px);text-align:center;
+  box-shadow:0 32px 80px rgba(0,0,0,0.8);margin:auto;}
+.login-title{font-size:clamp(20px,4vw,26px);font-weight:900;color:#fff;margin-bottom:6px;}
+.login-sub{font-size:15px;font-weight:600;color:var(--gray);margin-bottom:28px;}
+.login-pass{width:100%;background:var(--bg3);border:2px solid var(--bg3);border-radius:10px;
+  padding:16px 20px;color:#fff;font-family:'Inter',sans-serif;
+  font-size:22px;letter-spacing:8px;text-align:center;outline:none;
+  margin-bottom:14px;transition:border-color 0.2s;-webkit-text-security:disc;}
+.login-pass:focus{border-color:var(--gold);}
+.login-err{font-size:14px;font-weight:700;color:var(--red);min-height:20px;margin-bottom:14px;}
+.login-btn{width:100%;padding:16px;background:var(--gold);border:none;border-radius:10px;
+  color:#000;font-family:'Inter',sans-serif;font-size:17px;font-weight:900;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.login-btn:active{background:var(--gold2);}
+
+/* ─── ADMIN PANEL ─── */
+#adminPanel{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,0.96);
+  display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#adminPanel.on{display:block;}
+
+.admin-wrap{max-width:800px;margin:0 auto;padding:clamp(16px,3vw,32px);padding-bottom:60px;}
+
+.admin-hdr{display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--bg3);}
+.admin-hdr-title{font-size:clamp(18px,3vw,24px);font-weight:900;color:var(--gold);letter-spacing:2px;}
+.admin-close{width:44px;height:44px;background:var(--bg2);border:1px solid var(--bg3);
+  border-radius:8px;color:var(--gray);font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-weight:700;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.admin-close:active{color:var(--red);}
+
+.admin-tabs{display:flex;gap:0;margin-bottom:24px;border-bottom:2px solid var(--bg3);
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+.admin-tabs::-webkit-scrollbar{display:none;}
+.atab{padding:13px 20px;font-family:'Inter',sans-serif;font-size:clamp(13px,2vw,15px);
+  font-weight:700;cursor:pointer;color:var(--gray);border-bottom:3px solid transparent;
+  margin-bottom:-2px;white-space:nowrap;flex-shrink:0;transition:all 0.15s;
+  -webkit-tap-highlight-color:transparent;}
+.atab.on{color:var(--gold);border-bottom-color:var(--gold);}
+
+.asec{display:none;}
+.asec.on{display:block;}
+
+.ach-row{display:flex;align-items:center;gap:10px;padding:12px 14px;
+  background:var(--bg2);border-radius:10px;margin-bottom:8px;border:1px solid var(--bg3);}
+.ach-n{font-size:clamp(14px,2vw,17px);font-weight:700;color:#fff;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ach-url{font-size:12px;color:var(--gray2);flex:0.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media(max-width:600px){.ach-url{display:none;}}
+.abtn{min-width:40px;height:40px;border-radius:7px;border:1px solid;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;
+  flex-shrink:0;transition:all 0.15s;padding:0 10px;-webkit-tap-highlight-color:transparent;}
+.abtn-edit{background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.2);color:var(--blue);}
+.abtn-edit:active{background:rgba(56,189,248,0.2);}
+.abtn-del{background:rgba(248,113,113,0.08);border-color:rgba(248,113,113,0.2);color:var(--red);}
+.abtn-del:active{background:rgba(248,113,113,0.2);}
+
+.fgrp{margin-bottom:16px;}
+.flbl{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--gray);display:block;margin-bottom:8px;}
+.finp{width:100%;background:var(--bg2);border:2px solid var(--bg3);border-radius:10px;
+  padding:14px 16px;color:#fff;font-family:'Inter',sans-serif;font-size:clamp(14px,2vw,16px);
+  outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
+.finp:focus{border-color:var(--gold);}
+.frow{display:flex;gap:12px;}
+.frow .fgrp{flex:1;}
+@media(max-width:500px){.frow{flex-direction:column;gap:0;}}
+
+.row-btns{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+.btn-c{padding:13px 24px;border-radius:10px;background:var(--bg3);border:1px solid var(--bg3);
+  color:var(--gray);font-family:'Inter',sans-serif;font-size:15px;font-weight:700;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.btn-c:active{color:#fff;}
+.btn-s{padding:13px 28px;border-radius:10px;background:var(--gold);border:none;
+  color:#000;font-family:'Inter',sans-serif;font-size:15px;font-weight:900;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.btn-s:active{background:var(--gold2);}
+.btn-r{padding:13px 24px;border-radius:10px;background:rgba(248,113,113,0.1);
+  border:1px solid rgba(248,113,113,0.3);color:var(--red);
+  font-family:'Inter',sans-serif;font-size:15px;font-weight:700;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.btn-r:active{background:rgba(248,113,113,0.2);}
+
+.import-drop{background:var(--bg2);border:2px dashed var(--bg3);border-radius:12px;
+  padding:24px;text-align:center;cursor:pointer;margin-bottom:14px;
+  -webkit-tap-highlight-color:transparent;}
+.import-drop:active{border-color:var(--gold);}
+.import-drop-t{font-size:16px;font-weight:700;color:var(--gray);margin-top:6px;}
+.import-drop-s{font-size:13px;color:var(--gray2);margin-top:4px;}
+
+.fb{font-size:14px;font-weight:700;min-height:20px;margin-top:12px;}
+.fb.ok{color:var(--green);}
+.fb.err{color:var(--red);}
+
+.admin-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.admin-cnt{font-size:16px;font-weight:700;color:var(--gray);}
+.admin-top-btns{display:flex;gap:8px;}
+
+/* ─── CONFIRM ─── */
+#confirm{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.9);
+  display:none;align-items:center;justify-content:center;padding:20px;}
+#confirm.on{display:flex;}
+.confirm-card{width:min(380px,92vw);background:var(--bg2);border-radius:16px;padding:32px;
+  text-align:center;border:1px solid var(--bg3);}
+.confirm-msg{font-size:clamp(16px,3vw,19px);font-weight:700;margin-bottom:24px;line-height:1.5;}
+.confirm-btns{display:flex;gap:12px;justify-content:center;}
+
+/* ─── PHONE-ONLY ADMIN FAB ─── */
+#adminFab{
+  display:none;
+  position:fixed;bottom:20px;right:20px;z-index:50;
+  width:52px;height:52px;border-radius:50%;
+  background:var(--gold);border:none;
+  font-size:22px;cursor:pointer;
+  box-shadow:0 4px 20px rgba(240,165,0,0.4);
+  align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+#adminFab.visible{display:flex;}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="sp-name">ZELIHA <br><span>SAHIN</span></div>
+  <div class="sp-bar"></div>
+  <div class="sp-ded">
+    <div><b>Zeliha Sahin</b> icin</div>
+    <div>sevgiyle <span>Bayram</span> tarafindan yapilmistir</div>
+  </div>
+  <div class="sp-prog"><div></div></div>
+</div>
+
+<div id="app">
+  <div id="panel">
+    <div class="panel-head">
+      <div class="panel-lbl">Canli Yayin</div>
+      <div class="panel-title">Kanallar</div>
+      <div class="panel-cnt" id="panelCnt"></div>
+    </div>
+    <div id="chList"></div>
+  </div>
+  <div id="player">
+    <video id="vid" playsinline></video>
+    <div id="loader"><div class="spin"></div><div class="load-txt">Baglaniyor</div></div>
+    <div id="empty"><div class="empty-txt">Bir kanal secin</div></div>
+  </div>
+</div>
+
+<div id="osd"></div>
+
+<div id="speakToast">
+  <div class="speak-toast-txt" id="speakTxt"></div>
+  <div class="speak-toast-sub">Sesli Asistan</div>
+</div>
+
+<div id="voiceOverlay">
+  <div class="voice-ring"><div class="voice-mic">&#127908;</div></div>
+  <div class="voice-status" id="voiceStatus">Dinliyorum...</div>
+  <div class="voice-result" id="voiceResult"></div>
+  <div class="voice-hint">Kanal adini soyleyiniz<br>Ornek: "TRT 1" veya "Kanal D"</div>
+  <button class="voice-cancel" id="voiceCancel">Iptal</button>
+</div>
+
+<button id="adminFab" title="Yonetici">&#9881;</button>
+
+<div id="adminLogin">
+  <div class="login-card">
+    <div class="login-title">Yonetici Girisi</div>
+    <div class="login-sub">Sifrenizi girin</div>
+    <input type="password" id="loginPass" class="login-pass" placeholder="* * * * * *" maxlength="20" autocomplete="current-password">
+    <div class="login-err" id="loginErr"></div>
+    <button class="login-btn" id="btnLoginOk">GIRIS</button>
+  </div>
+</div>
+
+<div id="adminPanel">
+  <div class="admin-wrap">
+    <div class="admin-hdr">
+      <div class="admin-hdr-title">YONETICI PANELI</div>
+      <button class="admin-close" id="btnAdminClose">&#10005;</button>
+    </div>
+    <div class="admin-tabs">
+      <div class="atab on" data-t="list">Kanallar</div>
+      <div class="atab" data-t="add">Kanal Ekle</div>
+      <div class="atab" data-t="import">M3U Yukle</div>
+      <div class="atab" data-t="settings">Ayarlar</div>
+    </div>
+
+    <div class="asec on" id="sec-list">
+      <div class="admin-top">
+        <div class="admin-cnt" id="adminCnt"></div>
+        <div class="admin-top-btns">
+          <button class="btn-r" id="btnClearAll">Tumunu Sil</button>
+          <button class="btn-s" id="btnExport">Disa Aktar</button>
+        </div>
+      </div>
+      <div id="adminChList"></div>
+    </div>
+
+    <div class="asec" id="sec-add">
+      <div class="frow">
+        <div class="fgrp"><label class="flbl">Kanal Adi</label><input class="finp" id="addName" placeholder="TRT 1" autocomplete="off"></div>
+        <div class="fgrp"><label class="flbl">Kategori</label><input class="finp" id="addCat" placeholder="Haber, Spor" autocomplete="off"></div>
+      </div>
+      <div class="fgrp"><label class="flbl">Yayin Linki (M3U8)</label><input class="finp" id="addUrl" placeholder="https://..." autocomplete="off" inputmode="url"></div>
+      <div class="fgrp"><label class="flbl">Logo URL</label><input class="finp" id="addLogo" placeholder="https://...logo.png" autocomplete="off" inputmode="url"></div>
+      <div class="row-btns">
+        <button class="btn-c" id="btnAddReset">Temizle</button>
+        <button class="btn-s" id="btnAddSave">Kaydet</button>
+      </div>
+    </div>
+
+    <div class="asec" id="sec-import">
+      <div class="fgrp"><label class="flbl">M3U Playlist URL</label>
+        <input class="finp" id="importUrl" placeholder="https://...playlist.m3u" autocomplete="off" inputmode="url"></div>
+      <div class="import-drop" id="importDrop" onclick="document.getElementById('importFile').click()">
+        <div style="font-size:32px;color:var(--gray)">+</div>
+        <div class="import-drop-t" id="importDropLbl">M3U Dosyasi Sec</div>
+        <div class="import-drop-s">.m3u veya .m3u8</div>
+        <input type="file" id="importFile" accept=".m3u,.m3u8" style="display:none">
+      </div>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:16px;-webkit-tap-highlight-color:transparent">
+        <input type="checkbox" id="importAppend" style="width:20px;height:20px;accent-color:var(--gold)">
+        <span style="font-size:15px;font-weight:700;color:var(--gray)">Mevcut kanallara ekle</span>
+      </label>
+      <button class="btn-s" id="btnImportLoad">Yukle</button>
+      <div class="fb" id="importFb"></div>
+    </div>
+
+    <div class="asec" id="sec-settings">
+      <div style="background:var(--bg2);border:1px solid var(--bg3);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <div style="font-size:14px;font-weight:700;color:var(--gray);margin-bottom:6px;">ADMIN ERISIMI</div>
+        <div style="font-size:15px;font-weight:700;color:#fff;line-height:1.7;">
+          Telefon ile yonetici paneline girmek icin:<br>
+          <span style="color:var(--gold)">?admin=1</span> parametresini URL sonuna ekleyin<br>
+          <span style="font-size:13px;color:var(--gray)">Ornek: dosya.html?admin=1</span>
+        </div>
+      </div>
+      <div class="fgrp"><label class="flbl">Yeni Sifre</label><input class="finp" type="password" id="newP1" placeholder="Yeni sifre" autocomplete="new-password"></div>
+      <div class="fgrp"><label class="flbl">Sifre Tekrar</label><input class="finp" type="password" id="newP2" placeholder="Tekrar girin" autocomplete="new-password"></div>
+      <div class="row-btns"><button class="btn-s" id="btnPassSave">Sifreyi Kaydet</button></div>
+      <div class="fb" id="passFb"></div>
+    </div>
+  </div>
+</div>
+
+<div id="confirm">
+  <div class="confirm-card">
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn-c" id="confirmNo">Iptal</button>
+      <button class="btn-r" id="confirmYes">Sil</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+<script>
+'use strict';
+
+const SK_CH='zsiptv_v4_ch', SK_LAST='zsiptv_v4_last', SK_PASS='zsiptv_v4_pass', DEF_PASS='bayram1234';
+
+let CH=[], curIdx=-1, focIdx=0, hlsObj=null, isFs=false;
+let numBuf='', numTmr=null, osdTmr=null, rconTmr=null, rconAtt=0;
+let editIdx=-1, confirmCb=null;
+let trigCount=0, trigTmr=null, iCount=0, iTmr=null;
+let voiceActive=false;
+let speechSynth = window.speechSynthesis;
+let SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog = null;
+let trVoice = null;
+
+const ls=(k,d)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d;}catch{return d;}};
+const lset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
+function saveCH(){lset(SK_CH,CH);}
+function getPass(){return ls(SK_PASS,DEF_PASS);}
+function setPass(p){lset(SK_PASS,p);}
+
+function loadCH(){
+  CH=ls(SK_CH,null);
+  if(!CH||!Array.isArray(CH)||!CH.length){CH=defaultCH();saveCH();}
+}
+function defaultCH(){
+  return [
+    {name:'TRT 1',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/TRT_1_logo_%282021%29.svg/200px-TRT_1_logo_%282021%29.svg.png'},
+    {name:'TRT 2',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/TRT2_2021.svg/200px-TRT2_2021.svg.png'},
+    {name:'TRT Haber',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/TRT_Haber_logo.svg/200px-TRT_Haber_logo.svg.png'},
+    {name:'Kanal D',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kanal_D_logo_%282020%29.png/200px-Kanal_D_logo_%282020%29.png'},
+    {name:'ATV',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/ATV_Turkey_logo.svg/200px-ATV_Turkey_logo.svg.png'},
+    {name:'Show TV',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8d/Show_TV_logo_2020.svg/200px-Show_TV_logo_2020.svg.png'},
+    {name:'FOX TV',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/FOX_Turkey_2019.svg/200px-FOX_Turkey_2019.svg.png'},
+    {name:'Star TV',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Star_TV_%28Turkey%29_logo.svg/200px-Star_TV_%28Turkey%29_logo.svg.png'},
+    {name:'CNN Turk',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/CNN_Turk_logo_2015.png/200px-CNN_Turk_logo_2015.png'},
+    {name:'NTV',url:'',logo:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/NTV_logo.svg/200px-NTV_logo.svg.png'},
+    {name:'TRT Spor',url:'',logo:''},
+    {name:'beIN Sports 1',url:'',logo:''},
+    {name:'beIN Sports 2',url:'',logo:''},
+    {name:'TRT Cocuk',url:'',logo:''},
+    {name:'Cartoon Network',url:'',logo:''},
+  ];
+}
+
+function render(){
+  document.getElementById('panelCnt').textContent=CH.length+' kanal';
+  if(!CH.length){document.getElementById('chList').innerHTML='<div style="padding:40px;text-align:center;color:var(--gray);font-size:18px;font-weight:700">Kanal yok</div>';return;}
+  document.getElementById('chList').innerHTML=CH.map((ch,i)=>{
+    const f=i===focIdx, p=i===curIdx;
+    const lg=ch.logo
+      ?`<div class="ch-logo"><img src="${esc(ch.logo)}" onerror="this.parentElement.innerHTML='<div class=ch-logo-txt>${esc(ch.name.substring(0,7))}</div>'"></div>`
+      :`<div class="ch-logo"><div class="ch-logo-txt">${esc(ch.name.substring(0,8))}</div></div>`;
+    return `<div class="ch${f?' focused':''}${p?' playing':''}" data-i="${i}">
+      <div class="ch-num">${i+1}</div>${lg}
+      <div class="ch-info">
+        <div class="ch-name">${esc(ch.name)}</div>
+        <div class="ch-sub"><div class="ch-dot"></div><div class="ch-live-lbl">Canli</div></div>
+      </div></div>`;
+  }).join('');
+  document.getElementById('chList').querySelectorAll('.ch').forEach(el=>{
+    el.addEventListener('click',()=>selectCh(parseInt(el.dataset.i)));
+  });
+  scrollFocus();
+}
+function scrollFocus(){
+  const items=document.getElementById('chList').querySelectorAll('.ch');
+  if(items[focIdx])items[focIdx].scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function setFocus(i){focIdx=Math.max(0,Math.min(CH.length-1,i));render();}
+
+function selectCh(i){
+  if(i<0||i>=CH.length)return;
+  focIdx=i;curIdx=i;lset(SK_LAST,i);
+  render();playCh(CH[i]);enterFs();showOSD(i);
+}
+
+function playCh(ch){
+  document.getElementById('empty').classList.add('hide');
+  if(!ch.url){showLoad(false);return;}
+  showLoad(true);clearRcon();
+  
+  if(hlsObj){
+    hlsObj.detachMedia();
+    hlsObj.destroy();
+    hlsObj=null;
+  }
+  
+  const vid = document.getElementById('vid');
+  vid.pause();
+  vid.removeAttribute('src');
+  vid.load();
+  
+  if(Hls.isSupported()){
+    hlsObj=new Hls({enableWorker:true,lowLatencyMode:true,backBufferLength:60});
+    hlsObj.loadSource(ch.url);
+    hlsObj.attachMedia(vid);
+    hlsObj.on(Hls.Events.MANIFEST_PARSED,()=>{
+      vid.play().catch(()=>{
+        console.log("Sesli otomatik oynatma engellendi, sessiz baslatiliyor...");
+        vid.muted = true;
+        vid.play().catch(()=>{});
+      });
+      showLoad(false);
+      rconAtt=0;
+    });
+    hlsObj.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal){showLoad(true);schedRcon(ch);}});
+  } else {
+    vid.src=ch.url;
+    vid.play().then(()=>{showLoad(false);rconAtt=0;}).catch(()=>{
+      vid.muted = true;
+      vid.play().then(()=>{showLoad(false);rconAtt=0;}).catch(()=>schedRcon(ch));
+    });
+  }
+}
+
+function showLoad(v){document.getElementById('loader').classList.toggle('on',v);}
+function clearRcon(){if(rconTmr){clearTimeout(rconTmr);rconTmr=null;}}
+function schedRcon(ch){clearRcon();rconAtt++;rconTmr=setTimeout(()=>playCh(ch),Math.min(3000*rconAtt,15000));}
+document.getElementById('vid').addEventListener('playing',()=>{showLoad(false);rconAtt=0;});
+document.getElementById('vid').addEventListener('waiting',()=>showLoad(true));
+document.getElementById('vid').addEventListener('stalled',()=>showLoad(true));
+document.getElementById('vid').addEventListener('error',()=>{if(curIdx>=0)schedRcon(CH[curIdx]);});
+window.addEventListener('offline',()=>showLoad(true));
+window.addEventListener('online',()=>{if(curIdx>=0)playCh(CH[curIdx]);});
+
+function enterFs(){isFs=true;document.getElementById('app').classList.add('fs');}
+function exitFs(){isFs=false;document.getElementById('app').classList.remove('fs');}
+
+function showOSD(i){
+  const ch=CH[i];if(!ch)return;
+  if(osdTmr)clearTimeout(osdTmr);
+  const lg=ch.logo
+    ?`<div class="osd-logo"><img src="${esc(ch.logo)}" onerror="this.parentElement.innerHTML='<div class=osd-logo-txt>${esc(ch.name.substring(0,6))}</div>'"></div>`
+    :`<div class="osd-logo"><div class="osd-logo-txt">${esc(ch.name.substring(0,6))}</div></div>`;
+  document.getElementById('osd').innerHTML=`<div class="osd-box">
+    <div class="osd-num">${i+1}</div>${lg}
+    <div><div class="osd-name">${esc(ch.name)}</div><div class="osd-sub">Canli Yayin</div></div>
+  </div>`;
+  osdTmr=setTimeout(()=>document.getElementById('osd').innerHTML='',3500);
+}
+
+function numKey(d){
+  if(numTmr)clearTimeout(numTmr);
+  numBuf+=d;
+  const n=parseInt(numBuf);
+  if(CH[n-1])showOSD(n-1);
+  numTmr=setTimeout(()=>{
+    const idx=parseInt(numBuf)-1;numBuf='';
+    if(idx>=0&&idx<CH.length)selectCh(idx);
+  },1200);
+}
+
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('adminLogin').classList.contains('on')||
+     document.getElementById('adminPanel').classList.contains('on')||
+     document.getElementById('confirm').classList.contains('on')||
+     voiceActive)return;
+  const k=e.key;
+  if(k>='0'&&k<='9'){e.preventDefault();numKey(k);return;}
+  if(k==='i'||k==='I'){
+    iCount++;if(iTmr)clearTimeout(iTmr);
+    iTmr=setTimeout(()=>iCount=0,2000);
+    if(iCount>=3){iCount=0;openAdminLogin();}
+    return;
+  }
+  if(k==='V'||k==='v'||k==='Microphone'||k==='BrowserSearch'||e.keyCode===84){e.preventDefault();startVoice();return;}
+  e.preventDefault();
+  if(isFs){
+    if(k==='ArrowUp'||k==='ArrowLeft'){prevCh();return;}
+    if(k==='ArrowDown'||k==='ArrowRight'){nextCh();return;}
+    if(k==='Escape'||k==='Backspace'||k==='BrowserBack'||k==='GoBack'){exitFs();render();return;}
+    if(k==='ChannelUp'){nextCh();return;}
+    if(k==='ChannelDown'){prevCh();return;}
+  } else {
+    if(k==='ArrowUp'){setFocus(focIdx-1);return;}
+    if(k==='ArrowDown'){setFocus(focIdx+1);return;}
+    if(k==='Enter'||k===' '){selectCh(focIdx);return;}
+    if(k==='ChannelUp'){setFocus(focIdx-1);return;}
+    if(k==='ChannelDown'){setFocus(focIdx+1);return;}
+  }
+});
+function prevCh(){selectCh(curIdx>0?curIdx-1:CH.length-1);}
+function nextCh(){selectCh(curIdx<CH.length-1?curIdx+1:0);}
+
+function loadTRVoice(){
+  if(!speechSynth)return;
+  const set=()=>{
+    const voices=speechSynth.getVoices();
+    trVoice=voices.find(v=>v.lang.startsWith('tr'))||voices.find(v=>v.lang.startsWith('tr-TR'))||null;
+  };
+  set();
+  if(speechSynth.onvoiceschanged!==undefined)speechSynth.onvoiceschanged=set;
+}
+
+function speak(text, onEnd){
+  if(!speechSynth){if(onEnd)onEnd();return;}
+  try {
+    speechSynth.cancel();
+    const utt=new SpeechSynthesisUtterance(text);
+    utt.lang='tr-TR';
+    if(trVoice)utt.voice=trVoice;
+    utt.rate=0.88;
+    utt.pitch=1.0;
+    utt.volume=1.0;
+    if(onEnd)utt.onend=onEnd;
+    speechSynth.speak(utt);
+  } catch(e) { console.log("Ses sentezi engellendi"); }
+  
+  document.getElementById('speakTxt').textContent=text;
+  document.getElementById('speakToast').classList.add('on');
+  setTimeout(()=>document.getElementById('speakToast').classList.remove('on'),(text.length*80)+1000);
+}
+
+function startVoice(){
+  if(!SpeechRec){
+    speak('Sesli asistan bu cihazda desteklenmiyor.');
+    return;
+  }
+  if(voiceActive)return;
+  voiceActive=true;
+  document.getElementById('voiceOverlay').classList.add('on');
+  document.getElementById('voiceStatus').textContent='Dinliyorum...';
+  document.getElementById('voiceResult').textContent='';
+  speak('Evet Zeliha Hanim, hangi kanali izlemek istersiniz?');
+
+  recog=new SpeechRec();
+  recog.lang='tr-TR';
+  recog.continuous=false;
+  recog.interimResults=true;
+  recog.maxAlternatives=5;
+
+  recog.onresult=e=>{
+    let interim='', final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    document.getElementById('voiceResult').textContent=final||interim;
+    if(final){
+      stopVoice();
+      handleVoiceCommand(final.trim());
+    }
+  };
+  recog.onerror=e=>{
+    stopVoice();
+    if(e.error!=='aborted')speak('Anlayamadim. Lutfen tekrar deneyin.');
+  };
+  recog.onend=()=>{
+    if(voiceActive){stopVoice();speak('Anlayamadim. Lutfen tekrar deneyin.');}
+  };
+  recog.start();
+}
+
+function stopVoice(){
+  voiceActive=false;
+  document.getElementById('voiceOverlay').classList.remove('on');
+  if(recog){try{recog.abort();}catch{}recog=null;}
+}
+
+function handleVoiceCommand(text){
+  const t=text.toLocaleLowerCase('tr-TR')
+    .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s')
+    .replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c')
+    .replace(/\s+/g,' ').trim();
+
+  let best=-1, bestScore=0;
+  CH.forEach((ch,i)=>{
+    const cn=ch.name.toLocaleLowerCase('tr-TR')
+      .replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ş/g,'s')
+      .replace(/ı/g,'i').replace(/ö/g,'o').replace(/ç/g,'c');
+    let score=0;
+    if(t===cn)score=100;
+    else if(t.includes(cn)||cn.includes(t))score=80;
+    else {
+      const tw=t.split(' '), cw=cn.split(' ');
+      let matches=0;
+      tw.forEach(w=>{ if(w.length>1&&cw.some(c=>c.includes(w)||w.includes(c)))matches++; });
+      score=(matches/Math.max(tw.length,cw.length))*70;
+    }
+    if(score>bestScore){bestScore=score;best=i;}
+  });
+
+  if(best>=0&&bestScore>20){
+    const ch=CH[best];
+    speak(`${ch.name} aciyorum, Zeliha Hanim.`,()=>{
+      selectCh(best);
+    });
+    showOSD(best);
+  } else {
+    speak('Kanal bulunamadi. Lutfen tekrar soyleyin.');
+  }
+}
+
+document.getElementById('voiceCancel').addEventListener('click',()=>{
+  stopVoice();speak('Tamam Zeliha Hanim.');
+});
+
+window.addEventListener('hashchange',()=>{
+  const h=decodeURIComponent(location.hash.replace('#','')).trim();
+  if(h){location.hash='';handleVoiceCommand(h);}
+});
+(function checkURLQuery(){
+  const p=new URLSearchParams(location.search);
+  const q=p.get('q');
+  if(q){handleVoiceCommand(q);}
+})();
+
+(function checkAdminMode(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('admin')==='1'){
+    document.getElementById('adminFab').classList.add('visible');
+    document.getElementById('adminFab').addEventListener('click',openAdminLogin);
+  }
+})();
+
+document.body.addEventListener('click',e=>{
+  const vid = document.getElementById('vid');
+  if(vid && vid.muted) {
+    vid.muted = false;
+  }
+  
+  if(document.getElementById('adminPanel').classList.contains('on'))return;
+  if(document.getElementById('adminLogin').classList.contains('on'))return;
+  const x=e.clientX,y=e.clientY,w=window.innerWidth,h=window.innerHeight;
+  if(x>w-90&&y>h-90){
+    trigCount++;
+    if(trigTmr)clearTimeout(trigTmr);
+    trigTmr=setTimeout(()=>trigCount=0,3000);
+    if(trigCount>=5){trigCount=0;openAdminLogin();}
+  }
+});
+
+function openAdminLogin(){
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginErr').textContent='';
+  document.getElementById('adminLogin').classList.add('on');
+  setTimeout(()=>document.getElementById('loginPass').focus(),80);
+}
+function closeAdminLogin(){document.getElementById('adminLogin').classList.remove('on');}
+document.getElementById('btnLoginOk').addEventListener('click',doLogin);
+document.getElementById('loginPass').addEventListener('keydown',e=>{
+  if(e.key==='Enter')doLogin();
+  if(e.key==='Escape')closeAdminLogin();
+});
+function doLogin(){
+  if(document.getElementById('loginPass').value===getPass()){
+    closeAdminLogin();openAdmin();
+  } else {
+    document.getElementById('loginErr').textContent='Hatali sifre.';
+    document.getElementById('loginPass').value='';
+    setTimeout(()=>document.getElementById('loginErr').textContent='',2500);
+  }
+}
+
+function openAdmin(){
+  renderAdminList();
+  document.getElementById('adminPanel').classList.add('on');
+  switchTab('list');
+}
+function closeAdmin(){document.getElementById('adminPanel').classList.remove('on');}
+document.getElementById('btnAdminClose').addEventListener('click',closeAdmin);
+
+document.querySelectorAll('.atab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.t)));
+function switchTab(n){
+  document.querySelectorAll('.atab').forEach(t=>t.classList.toggle('on',t.dataset.t===n));
+  document.querySelectorAll('.asec').forEach(s=>s.classList.toggle('on',s.id==='sec-'+n));
+  if(n==='list')renderAdminList();
+}
+
+function renderAdminList(){
+  document.getElementById('adminCnt').textContent=CH.length+' kanal';
+  const c=document.getElementById('adminChList');
+  if(!CH.length){c.innerHTML='<div style="padding:30px;text-align:center;color:var(--gray);font-size:16px;font-weight:700">Kanal yok</div>';return;}
+  c.innerHTML=CH.map((ch,i)=>`
+    <div class="ach-row">
+      <div class="ach-n">${i+1}. ${esc(ch.name)}</div>
+      <div class="ach-url">${esc(ch.url||'—')}</div>
+      <button class="abtn abtn-edit" data-i="${i}">Duzenle</button>
+      <button class="abtn abtn-del" data-i="${i}">Sil</button>
+    </div>`).join('');
+  c.querySelectorAll('.abtn-del').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i);
+    confirm2(`"${CH[i].name}" silinsin mi?`,()=>{
+      CH.splice(i,1);saveCH();render();renderAdminList();
+    });
+  }));
+  c.querySelectorAll('.abtn-edit').forEach(b=>b.addEventListener('click',()=>{
+    const i=parseInt(b.dataset.i);
+    editIdx=i;const ch=CH[i];
+    document.getElementById('addName').value=ch.name;
+    document.getElementById('addCat').value=ch.cat||'';
+    document.getElementById('addUrl').value=ch.url||'';
+    document.getElementById('addLogo').value=ch.logo||'';
+    switchTab('add');
+    document.getElementById('addName').focus();
+  }));
+}
+
+document.getElementById('btnAddSave').addEventListener('click',()=>{
+  const name=document.getElementById('addName').value.trim();
+  const url=document.getElementById('addUrl').value.trim();
+  const logo=document.getElementById('addLogo').value.trim();
+  const cat=document.getElementById('addCat').value.trim();
+  if(!name)return;
+  const obj={name,url,logo,cat};
+  if(editIdx>=0){CH[editIdx]=obj;editIdx=-1;}else CH.push(obj);
+  saveCH();render();clearAddForm();switchTab('list');
+});
+document.getElementById('btnAddReset').addEventListener('click',()=>{editIdx=-1;clearAddForm();});
+function clearAddForm(){['addName','addCat','addUrl','addLogo'].forEach(id=>document.getElementById(id).value='');}
+
+document.getElementById('btnClearAll').addEventListener('click',()=>{
+  confirm2('Tum kanallar silinsin mi?',()=>{CH=[];saveCH();render();renderAdminList();});
+});
+document.getElementById('btnExport').addEventListener('click',()=>{
+  const lines=['#EXTM3U'];
+  CH.forEach(ch=>{lines.push(`#EXTINF:-1 tvg-logo="${ch.logo||''}" group-title="${ch.cat||'Genel'}",${ch.name}`);lines.push(ch.url||'http://placeholder');});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/plain'}));
+  a.download='zeliha-iptv.m3u';a.click();
+});
+
+document.getElementById('importFile').addEventListener('change',e=>{
+  const f=e.target.files[0];
+  if(f)document.getElementById('importDropLbl').textContent=f.name;
+});
+document.getElementById('btnImportLoad').addEventListener('click',async()=>{
+  const url=document.getElementById('importUrl').value.trim();
+  const file=document.getElementById('importFile').files[0];
+  const append=document.getElementById('importAppend').checked;
+  const fb=document.getElementById('importFb');
+  if(url){
+    try{const r=await fetch(url);parseM3U(await r.text(),append);}
+    catch(e){fb.className='fb err';fb.textContent='Hata: '+e.message;}
+  } else if(file){
+    const rd=new FileReader();rd.onload=e=>parseM3U(e.target.result,append);rd.readAsText(file);
+  } else {fb.className='fb err';fb.textContent='URL veya dosya secin.';}
+});
+function parseM3U(text,append){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const add=[];
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].startsWith('#EXTINF')){
+      const info=lines[i],url=lines[i+1]||'';
+      if(!url||url.startsWith('#'))continue;
+      const nm=info.match(/,(.+)$/),lg=info.match(/tvg-logo="([^"]+)"/i),ct=info.match(/group-title="([^"]+)"/i);
+      add.push({name:nm?nm[1].trim():'Kanal '+(CH.length+1),url,logo:lg?lg[1]:'',cat:ct?ct[1]:''});
+      i++;
+    }
+  }
+  if(!append)CH=[];CH.push(...add);saveCH();render();renderAdminList();
+  const fb=document.getElementById('importFb');
+  fb.className='fb ok';fb.textContent=add.length+' kanal yuklendi.';
+  setTimeout(()=>fb.textContent='',4000);
+}
+
+document.getElementById('btnPassSave').addEventListener('click',()=>{
+  const p1=document.getElementById('newP1').value,p2=document.getElementById('newP2').value;
+  const fb=document.getElementById('passFb');
+  if(!p1){fb.className='fb err';fb.textContent='Sifre bos olamaz.';return;}
+  if(p1!==p2){fb.className='fb err';fb.textContent='Sifreler eslesmiyor.';return;}
+  setPass(p1);fb.className='fb ok';fb.textContent='Sifre kaydedildi.';
+  document.getElementById('newP1').value='';document.getElementById('newP2').value='';
+  setTimeout(()=>fb.textContent='',3000);
+});
+
+function confirm2(msg,cb){
+  confirmCb=cb;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirm').classList.add('on');
+}
+document.getElementById('confirmYes').addEventListener('click',()=>{
+  document.getElementById('confirm').classList.remove('on');
+  if(confirmCb)confirmCb();confirmCb=null;
+});
+document.getElementById('confirmNo').addEventListener('click',()=>{
+  document.getElementById('confirm').classList.remove('on');confirmCb=null;
+});
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── INIT ──
+function init(){
+  loadCH();render();loadTRVoice();
+  
+  setTimeout(()=>{
+    const last=ls(SK_LAST,-1);
+    const start=(last>=0&&last<CH.length)?last:0;
+    if(CH.length>0){focIdx=start;selectCh(start);}
+  },5200);
+  
+  setTimeout(()=>{
+    speak('Hosgeldiniz Zeliha Hanim. Zeliha Sahin IPTV acildi.');
+  },5400);
+}
+
+init();
+</script>
+</body>
+</html>
