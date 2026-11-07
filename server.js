@@ -107,4 +107,5 @@ http.createServer(async (req, res) => {
     }
     json(res, 404, {});
   } catch (e) { try { json(res, 500, {}); } catch {} }
-}).listen(PORT, '0.0.0.0', () => console.log(...));   (yönetici şifresi: ${process.env.ADMIN_PASS ? 'ADMIN_PASS' : '123456'})`));
+}).listen(PORT, '0.0.0.0', () => console.log(`Ömer IPTV → http://localhost:${PORT}   (yönetici şifresi: ${process.env.ADMIN_PASS ? 'ADMIN_PASS' : '123456'})`));
+
