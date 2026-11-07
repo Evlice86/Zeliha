@@ -4,6 +4,7 @@
 // Proxy/HTTPS arkasında gerçek IP için: TRUST_PROXY=1
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const PORT = process.env.PORT || 3000;
+const TRUST = process.env.TRUST_PROXY === '1';
 const PAGE = path.join(__dirname, process.env.PAGE || 'omer-iptv-pro-v6.html');
 const DATA = path.join(__dirname, process.env.DATA || 'data.json');
 
