@@ -3,7 +3,7 @@
 // Varsayılan yönetici şifresi: 123456  (değiştirmek için panelden Ayarlar veya ADMIN_PASS=... ile başlat)
 // Proxy/HTTPS arkasında gerçek IP için: TRUST_PROXY=1
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
-const PORT = +process.env.PORT || 3000, TRUST = process.env.TRUST_PROXY === '1';
+const PORT = process.env.PORT || 3000;
 const PAGE = path.join(__dirname, process.env.PAGE || 'omer-iptv-pro-v6.html');
 const DATA = path.join(__dirname, process.env.DATA || 'data.json');
 
